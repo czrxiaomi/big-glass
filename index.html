@@ -1,0 +1,1150 @@
+
+liquid-glass-showcase.html
+· HTML
+
+
+
+
+
+发布
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LIQUID · 玻璃与光 — 沉浸式交互演示</title>
+<style>
+:root{
+  --bg:#fbfbfd;
+  --ink:#1d1d1f;
+  --ink-soft:#6e6e73;
+  --hair:rgba(29,29,31,.08);
+  --glass:rgba(255,255,255,.55);
+  --glass-strong:rgba(255,255,255,.72);
+  --stroke:rgba(255,255,255,.65);
+  --accent:#4f8cff;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:auto}
+html,body{background:var(--bg)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC","Helvetica Neue",sans-serif;
+  color:var(--ink);
+  overflow-x:hidden;
+  cursor:none;
+}
+::selection{background:rgba(79,140,255,.22)}
+
+/* ---------- 加载器 ---------- */
+#loader{
+  position:fixed;inset:0;z-index:1000;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity .9s var(--ease),visibility .9s;
+}
+#loader.done{opacity:0;visibility:hidden;pointer-events:none}
+.loader-ring{
+  width:88px;height:88px;border-radius:50%;position:relative;
+  background:rgba(255,255,255,.5);
+  backdrop-filter:blur(18px) saturate(1.6);
+  -webkit-backdrop-filter:blur(18px) saturate(1.6);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 12px 40px rgba(29,29,31,.08),inset 0 1px 0 rgba(255,255,255,.9);
+}
+.loader-ring::before{
+  content:"";position:absolute;inset:8px;border-radius:50%;
+  border:1.5px solid transparent;border-top-color:var(--accent);
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loader .num{font-size:14px;font-weight:600;letter-spacing:.2em;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+#loader .tip{font-size:12px;color:#a1a1a6;letter-spacing:.12em}
+
+/* ---------- WebGL 画布 & 颗粒噪点 ---------- */
+#gl{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none}
+#grain{
+  position:fixed;inset:-50%;width:200%;height:200%;z-index:3;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  animation:grain 7s steps(8) infinite;
+}
+@keyframes grain{
+  0%,100%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}
+  50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-2%)}
+}
+
+/* ---------- 平滑滚动容器 ---------- */
+#smooth{position:relative;z-index:2;will-change:transform}
+#spacer{width:100%}
+section{position:relative}
+
+/* ---------- 顶部导航 ---------- */
+#nav{
+  position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:50;
+  display:flex;align-items:center;gap:6px;padding:6px;
+  background:var(--glass);backdrop-filter:blur(22px) saturate(1.8);
+  -webkit-backdrop-filter:blur(22px) saturate(1.8);
+  border-radius:999px;border:1px solid var(--stroke);
+  box-shadow:0 8px 32px rgba(29,29,31,.08),inset 0 1px 0 rgba(255,255,255,.95);
+  transition:transform .6s var(--ease),opacity .6s;
+}
+#nav.hidden{transform:translate(-50%,-140%);opacity:0}
+#nav a{
+  text-decoration:none;color:var(--ink-soft);font-size:13px;font-weight:550;
+  padding:7px 16px;border-radius:999px;transition:all .3s;cursor:none;
+}
+#nav a:hover,#nav a.active{color:var(--ink);background:rgba(29,29,31,.06)}
+
+/* 章节圆点 */
+#dots{
+  position:fixed;right:22px;top:50%;transform:translateY(-50%);z-index:50;
+  display:flex;flex-direction:column;gap:14px;transition:opacity .5s;
+}
+#dots i{
+  width:7px;height:7px;border-radius:50%;background:rgba(29,29,31,.18);
+  transition:all .4s var(--ease);cursor:none;display:block;
+}
+#dots i.active{background:var(--ink);transform:scale(1.35);box-shadow:0 0 0 4px rgba(29,29,31,.08)}
+
+/* ---------- 通用排版 ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding:0 6vw}
+.chapter{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+.chapter .no{font-size:13px;font-weight:650;letter-spacing:.22em;color:var(--accent)}
+.chapter .line{width:52px;height:1px;background:rgba(29,29,31,.2);align-self:center}
+.chapter .name{font-size:13px;font-weight:600;letter-spacing:.28em;color:var(--ink-soft)}
+.big{
+  font-weight:800;letter-spacing:-.03em;line-height:.96;
+  font-size:clamp(44px,7.4vw,116px);
+}
+.desc{color:var(--ink-soft);font-size:16px;line-height:1.8;max-width:520px}
+.reveal{opacity:0;transform:translateY(46px);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- 01 HERO ---------- */
+#hero{height:100vh;min-height:640px;display:flex;align-items:center}
+#hero .wrap{width:100%}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;
+  letter-spacing:.2em;color:var(--ink-soft);margin-bottom:26px;
+  padding:7px 16px;border-radius:999px;background:var(--glass);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--stroke);box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+.hero-tag .dot{width:6px;height:6px;border-radius:50%;background:#34c759;animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+#hero h1{
+  font-weight:800;letter-spacing:-.04em;line-height:.94;
+  font-size:clamp(64px,13vw,210px);
+}
+#hero h1 .l{display:inline-block;overflow:hidden;vertical-align:bottom}
+#hero h1 .l span{display:inline-block;transform:translateY(110%);transition:transform 1.1s var(--ease)}
+#hero.ready h1 .l span{transform:none}
+#hero h1 .sub{color:transparent;-webkit-text-stroke:1.5px rgba(29,29,31,.32)}
+.hero-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:5vh;flex-wrap:wrap;gap:20px}
+.hero-hint{font-size:13px;color:var(--ink-soft);letter-spacing:.08em;display:flex;align-items:center;gap:10px}
+.hero-hint .mouse{width:20px;height:32px;border:1.5px solid rgba(29,29,31,.3);border-radius:10px;position:relative}
+.hero-hint .mouse::after{content:"";position:absolute;left:50%;top:6px;width:3px;height:6px;margin-left:-1.5px;border-radius:2px;background:rgba(29,29,31,.4);animation:wheel 1.6s infinite}
+@keyframes wheel{0%{transform:translateY(0);opacity:1}70%{transform:translateY(10px);opacity:0}100%{opacity:0}}
+.hero-meta{font-size:12px;color:#a1a1a6;letter-spacing:.18em;text-align:right;line-height:2}
+
+/* 玻璃球拖拽热区（覆盖 hero 中央，不挡文字两侧） */
+#blobHit{
+  position:absolute;left:50%;top:50%;width:min(46vw,560px);height:min(46vw,560px);
+  transform:translate(-50%,-50%);cursor:grab;z-index:1;touch-action:none;
+}
+#blobHit:active{cursor:grabbing}
+
+/* ---------- 02 液态玻璃 ---------- */
+#glassSec{padding:22vh 0 18vh}
+.glass-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-top:60px}
+.card{
+  --rx:0deg;--ry:0deg;
+  position:relative;border-radius:30px;padding:34px 30px 30px;min-height:300px;
+  background:linear-gradient(160deg,rgba(255,255,255,.66),rgba(255,255,255,.38));
+  backdrop-filter:blur(26px) saturate(1.9);
+  -webkit-backdrop-filter:blur(26px) saturate(1.9);
+  border:1px solid rgba(255,255,255,.75);
+  box-shadow:0 24px 60px rgba(29,29,31,.09),inset 0 1px 0 rgba(255,255,255,.95);
+  transform:perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition:transform .5s var(--ease),box-shadow .5s;overflow:hidden;
+}
+/* 顶部高光，让白底玻璃有光泽 */
+.card::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,0) 34%);
+  mix-blend-mode:screen;
+}
+/* 掠过光带 */
+.card .sheen{
+  position:absolute;top:0;left:-80%;width:55%;height:100%;pointer-events:none;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.85),transparent);
+  transform:skewX(-18deg);transition:left 1s var(--ease);
+}
+.card:hover .sheen{left:130%}
+.card .ico{
+  width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 8px 24px rgba(29,29,31,.08),inset 0 1px 0 #fff;margin-bottom:22px;
+}
+.card .ico svg{width:26px;height:26px;stroke:var(--ink);fill:none;stroke-width:1.6}
+.card h3{font-size:22px;font-weight:700;letter-spacing:-.01em;margin-bottom:12px}
+.card p{font-size:14.5px;line-height:1.75;color:var(--ink-soft)}
+.card .num{position:absolute;top:26px;right:28px;font-size:12px;font-weight:650;color:#b4b4ba;letter-spacing:.14em}
+.card.glow{animation:cardFloat 6s ease-in-out infinite}
+@keyframes cardFloat{50%{transform:perspective(1000px) translateY(-8px)}}
+
+/* 液态透镜（跟随光标的放大镜） */
+#lens{
+  position:fixed;z-index:40;width:150px;height:150px;border-radius:50%;pointer-events:none;
+  left:0;top:0;transform:translate(-50%,-50%);opacity:0;transition:opacity .5s;
+  backdrop-filter:blur(1px) saturate(1.4) contrast(1.06);
+  -webkit-backdrop-filter:blur(1px) saturate(1.4) contrast(1.06);
+  border:1.5px solid rgba(255,255,255,.85);
+  box-shadow:0 18px 50px rgba(29,29,31,.14),inset 0 0 0 6px rgba(255,255,255,.28),inset 0 14px 30px rgba(255,255,255,.55);
+}
+#lens.on{opacity:1}
+#lens::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.7),transparent 42%)}
+
+/* ---------- 03 沉浸光感 ---------- */
+#lightSec{height:190vh}
+.light-stage{position:sticky;top:0;height:100vh;overflow:hidden;display:flex;align-items:center}
+.light-stage .wrap{z-index:2}
+.light-orb{
+  position:absolute;left:50%;top:50%;width:66vmin;height:66vmin;border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:
+    radial-gradient(circle at 40% 36%,rgba(255,255,255,.98) 0 16%,rgba(200,222,255,.5) 34%,rgba(255,214,224,.32) 52%,transparent 70%);
+  filter:blur(2px);
+}
+.light-rays{
+  position:absolute;left:50%;top:50%;width:160vmax;height:160vmax;border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:conic-gradient(from 0deg,
+    transparent 0deg,rgba(160,190,255,.16) 8deg,transparent 16deg,
+    transparent 56deg,rgba(255,206,178,.14) 64deg,transparent 72deg,
+    transparent 130deg,rgba(178,224,255,.15) 138deg,transparent 146deg,
+    transparent 200deg,rgba(255,222,200,.12) 208deg,transparent 216deg,
+    transparent 286deg,rgba(190,200,255,.13) 294deg,transparent 302deg);
+  -webkit-mask-image:radial-gradient(circle,#000 0%,transparent 62%);
+  mask-image:radial-gradient(circle,#000 0%,transparent 62%);
+  animation:rays 40s linear infinite;opacity:.9;
+}
+@keyframes rays{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.light-stage .big{-webkit-text-stroke:0}
+.light-stage .big .fill{
+  background:linear-gradient(100deg,#1d1d1f 30%,#8ea9d8 50%,#e5a98f 55%,#1d1d1f 70%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:lightSweep 5s var(--ease) infinite;
+}
+@keyframes lightSweep{0%{background-position:120% 0}100%{background-position:-120% 0}}
+.light-words{display:flex;gap:34px;flex-wrap:wrap;margin-top:44px}
+.light-words span{
+  font-size:14px;font-weight:600;letter-spacing:.16em;color:var(--ink-soft);
+  padding:10px 20px;border-radius:999px;background:rgba(255,255,255,.5);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 #fff;
+}
+
+/* ---------- 04 粒子 ---------- */
+#particleSec{min-height:130vh;padding:16vh 0;display:flex;flex-direction:column;justify-content:center}
+.p-input{
+  margin-top:56px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+}
+.p-input input{
+  flex:1;min-width:240px;max-width:420px;height:56px;padding:0 24px;font-size:16px;
+  font-family:inherit;color:var(--ink);outline:none;border-radius:18px;
+  background:rgba(255,255,255,.55);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 30px rgba(29,29,31,.06);
+  transition:box-shadow .3s,border-color .3s;cursor:none;
+}
+.p-input input:focus{border-color:rgba(79,140,255,.45);box-shadow:inset 0 1px 0 #fff,0 0 0 4px rgba(79,140,255,.12)}
+.btn{
+  height:56px;padding:0 30px;border:none;border-radius:18px;font-size:15px;font-weight:650;
+  font-family:inherit;color:#fff;background:var(--ink);
+  box-shadow:0 12px 30px rgba(29,29,31,.22),inset 0 1px 0 rgba(255,255,255,.18);
+  cursor:none;position:relative;overflow:hidden;transition:transform .3s var(--ease),box-shadow .3s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn::after{
+  content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);
+  transform:skewX(-18deg);transition:left .7s var(--ease);
+}
+.btn:hover::after{left:130%}
+.p-note{margin-top:26px;font-size:13px;color:#a1a1a6;letter-spacing:.06em}
+.p-note b{color:var(--ink-soft);font-weight:650}
+
+/* ---------- 05 互动区 ---------- */
+#playSec{padding:14vh 0 20vh}
+.play-row{display:flex;gap:26px;flex-wrap:wrap;margin-top:60px;align-items:stretch}
+.play-box{
+  flex:1;min-width:280px;border-radius:30px;padding:38px 32px;
+  background:linear-gradient(165deg,rgba(255,255,255,.6),rgba(255,255,255,.34));
+  backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);
+  border:1px solid rgba(255,255,255,.72);
+  box-shadow:0 20px 54px rgba(29,29,31,.08),inset 0 1px 0 rgba(255,255,255,.95);
+  display:flex;flex-direction:column;gap:18px;
+}
+.play-box h3{font-size:19px;font-weight:700}
+.play-box p{font-size:14px;line-height:1.75;color:var(--ink-soft)}
+.mag-area{min-height:120px;display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
+.mag-btn{
+  padding:14px 28px;border-radius:999px;font-size:14px;font-weight:650;
+  background:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.95);color:var(--ink);
+  box-shadow:0 10px 26px rgba(29,29,31,.09),inset 0 1px 0 #fff;
+  cursor:none;transition:box-shadow .3s;user-select:none;
+}
+.mag-btn.blue{background:var(--accent);color:#fff;border-color:transparent;box-shadow:0 12px 30px rgba(79,140,255,.35)}
+.egg-list{list-style:none;display:flex;flex-direction:column;gap:14px}
+.egg-list li{
+  display:flex;align-items:center;gap:14px;font-size:14.5px;color:var(--ink-soft);
+  padding:14px 18px;border-radius:16px;background:rgba(255,255,255,.5);
+  border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff;
+}
+.egg-list .k{
+  font-size:12px;font-weight:700;color:var(--ink);letter-spacing:.05em;
+  padding:4px 10px;border-radius:8px;background:rgba(29,29,31,.07);white-space:nowrap;
+}
+
+/* ---------- 页脚 ---------- */
+footer{padding:60px 0 44px;border-top:1px solid var(--hair)}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+footer .f-logo{font-size:20px;font-weight:800;letter-spacing:-.02em}
+footer .f-logo i{font-style:normal;color:var(--accent)}
+footer p{font-size:12.5px;color:#a1a1a6;letter-spacing:.1em}
+
+/* ---------- 自定义光标 ---------- */
+#cursor{
+  position:fixed;left:0;top:0;z-index:999;pointer-events:none;
+  width:10px;height:10px;border-radius:50%;background:var(--ink);
+  transform:translate(-50%,-50%);
+}
+#cursorRing{
+  position:fixed;left:0;top:0;z-index:998;pointer-events:none;
+  width:42px;height:42px;border-radius:50%;
+  border:1.5px solid rgba(29,29,31,.32);
+  background:rgba(255,255,255,.12);
+  backdrop-filter:blur(3px) saturate(1.5);-webkit-backdrop-filter:blur(3px) saturate(1.5);
+  transform:translate(-50%,-50%);
+  transition:width .35s var(--ease),height .35s var(--ease),border-color .35s,background .35s;
+}
+body.cursor-hover #cursorRing{width:64px;height:64px;border-color:rgba(79,140,255,.55);background:rgba(79,140,255,.08)}
+body.cursor-hover #cursor{transform:translate(-50%,-50%) scale(.5)}
+
+/* ---------- 纯玩模式 ---------- */
+#toyHit{position:fixed;inset:0;z-index:60;display:none;cursor:grab;touch-action:none}
+#toyHit:active{cursor:grabbing}
+#toyUI{position:fixed;inset:0;z-index:61;display:none;pointer-events:none}
+body.toy #toyUI{display:block}
+body.toy #smooth,body.toy #nav,body.toy #dots{display:none}
+body.toy{overflow:hidden}
+#toyDots{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:auto}
+#toyDots b{
+  width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:650;font-size:13px;color:var(--ink-soft);cursor:none;
+  background:var(--glass);backdrop-filter:blur(18px) saturate(1.7);-webkit-backdrop-filter:blur(18px) saturate(1.7);
+  border:1px solid var(--stroke);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 8px 24px rgba(29,29,31,.08);
+  transition:all .35s var(--ease);
+}
+#toyDots b.on{color:#fff;background:var(--ink);border-color:transparent;transform:scale(1.1)}
+#toyExit{
+  position:absolute;top:24px;right:26px;pointer-events:auto;cursor:none;
+  padding:11px 22px;border-radius:999px;font-size:13px;font-weight:600;font-family:inherit;color:var(--ink);
+  background:var(--glass);backdrop-filter:blur(18px) saturate(1.7);-webkit-backdrop-filter:blur(18px) saturate(1.7);
+  border:1px solid var(--stroke);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 8px 24px rgba(29,29,31,.08);
+  transition:all .3s var(--ease);
+}
+#toyExit:hover{transform:translateY(-2px)}
+#toyHint{
+  position:absolute;bottom:92px;left:50%;transform:translateX(-50%);
+  font-size:13px;letter-spacing:.1em;color:var(--ink-soft);white-space:nowrap;
+}
+#toyOrb{
+  position:fixed;left:-999px;top:-999px;width:48vmin;height:48vmin;border-radius:50%;
+  pointer-events:none;display:none;transform:translate(-50%,-50%);
+  background:
+    radial-gradient(circle at 40% 36%,rgba(255,255,255,.98) 0 16%,rgba(200,222,255,.5) 34%,rgba(255,214,224,.32) 52%,transparent 70%);
+}
+#toyMag{position:absolute;inset:0;display:none}
+.peb{
+  position:absolute;left:0;top:0;border-radius:50%;
+  background:linear-gradient(160deg,rgba(255,255,255,.72),rgba(255,255,255,.36));
+  backdrop-filter:blur(14px) saturate(1.8);-webkit-backdrop-filter:blur(14px) saturate(1.8);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 12px 30px rgba(29,29,31,.08),inset 0 1px 0 #fff;
+}
+
+/* ---------- 响应式 & 降级 ---------- */
+@media (hover:none){
+  body{cursor:auto}
+  #cursor,#cursorRing{display:none}
+  #lens{display:none}
+}
+@media (max-width:720px){
+  #dots{display:none}
+  .hero-meta{display:none}
+  #blobHit{width:80vw;height:52vh}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- 加载器 -->
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="num" id="loadNum">00</div>
+  <div class="tip">正在凝固光线 · LIQUID GLASS ENGINE</div>
+</div>
+
+<!-- SVG 滤镜库 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="liquidText" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" result="n" seed="3">
+        <animate attributeName="baseFrequency" dur="8s" values="0.012 0.02;0.016 0.026;0.012 0.02" repeatCount="indefinite"/>
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<canvas id="gl"></canvas>
+<div id="grain"></div>
+<div id="lens"></div>
+<div id="cursor"></div>
+<div id="cursorRing"></div>
+
+<nav id="nav">
+  <a href="#hero" data-sec="hero" class="active">首页</a>
+  <a href="#glassSec" data-sec="glassSec">液态玻璃</a>
+  <a href="#lightSec" data-sec="lightSec">沉浸光感</a>
+  <a href="#particleSec" data-sec="particleSec">粒子</a>
+  <a href="#playSec" data-sec="playSec">互动</a>
+</nav>
+<div id="dots">
+  <i data-sec="hero" class="active"></i>
+  <i data-sec="glassSec"></i>
+  <i data-sec="lightSec"></i>
+  <i data-sec="particleSec"></i>
+  <i data-sec="playSec"></i>
+</div>
+
+<div id="toyHit"></div>
+<div id="toyUI">
+  <div id="toyOrb"></div>
+  <div id="toyMag"></div>
+  <button id="toyExit">退出玩乐 · ESC</button>
+  <div id="toyHint"></div>
+  <div id="toyDots">
+    <b data-ts="0" class="on">球</b><b data-ts="1">字</b><b data-ts="2">光</b><b data-ts="3">磁</b>
+  </div>
+</div>
+
+<div id="smooth">
+
+  <!-- 01 HERO -->
+  <section id="hero">
+    <div id="blobHit" title="拖动我"></div>
+    <div class="wrap" style="position:relative;z-index:2">
+      <div class="hero-tag"><span class="dot"></span>LIQUID GLASS ENGINE · 2026</div>
+      <h1 id="heroTitle">
+        <span class="l"><span>LIQUID</span></span><br>
+        <span class="l"><span class="sub">GLASS</span></span>
+      </h1>
+      <div class="hero-foot">
+        <div class="hero-hint">
+          <span class="mouse"></span>
+          拖动玻璃球 · 滚动探索五个章节
+        </div>
+        <div class="hero-meta">
+          APPLE-STYLE LIQUID GLASS<br>
+          HUAWEI IMMERSIVE LIGHT & PARTICLES
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 液态玻璃 -->
+  <section id="glassSec">
+    <div class="wrap">
+      <div class="chapter"><span class="no">01</span><span class="line"></span><span class="name">LIQUID GLASS</span></div>
+      <h2 class="big reveal">像水一样<br>又比水更锋利</h2>
+      <p class="desc reveal" style="margin-top:28px">
+        液态玻璃不是一层毛玻璃。它是折射、色散、高光与投影的合谋——
+        让界面拥有「厚度」。移动光标，感受卡片倾斜与光带掠过；看看那枚跟着你走的透镜。
+      </p>
+      <div class="glass-grid">
+        <div class="card tilt reveal">
+          <div class="sheen"></div><span class="num">A</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l7 7-7 11-7-11 7-7z"/><path d="M5 10h14"/></svg></div>
+          <h3>折射 · Refraction</h3>
+          <p>光线穿过玻璃时改变方向。我们用 backdrop 滤镜与透镜元素实时弯曲背后的世界，文字与背景在玻璃边缘微微错位。</p>
+        </div>
+        <div class="card tilt glow reveal" style="transition-delay:.08s">
+          <div class="sheen"></div><span class="num">B</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v4M12 16v4M4 12h4M16 12h4"/></svg></div>
+          <h3>高光 · Specular</h3>
+          <p>玻璃之所以像玻璃，靠的是那道 1 像素的顶部亮边与缓慢掠过的光带。没有它们，白底上的玻璃只是雾。</p>
+        </div>
+        <div class="card tilt reveal" style="transition-delay:.16s">
+          <div class="sheen"></div><span class="num">C</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12c4-7 14-7 18 0-4 7-14 7-18 0z"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+          <h3>沉浸 · Immersion</h3>
+          <p>滚动本身成为一种叙事。每个章节的粒子与光都会随你的滚动重新编排，页面不是被浏览的，是被演奏的。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 沉浸光感 -->
+  <section id="lightSec">
+    <div class="light-stage">
+      <div class="light-orb" id="lightOrb"></div>
+      <div class="light-rays"></div>
+      <div class="wrap">
+        <div class="chapter"><span class="no">02</span><span class="line"></span><span class="name">IMMERSIVE LIGHT</span></div>
+        <h2 class="big">光，<br><span class="fill">随之而动</span></h2>
+        <div class="light-words">
+          <span>华为式沉浸光感</span><span>随滚动呼吸的光晕</span><span>旋转光束</span><span>文字扫光</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 粒子 -->
+  <section id="particleSec">
+    <div class="wrap">
+      <div class="chapter"><span class="no">03</span><span class="line"></span><span class="name">PARTICLE FIELD</span></div>
+      <h2 class="big reveal">两万个粒子<br>只听你的</h2>
+      <p class="desc reveal" style="margin-top:28px">
+        GPU 上运行的粒子系统：每一粒都有独立的速度、色相与噪声。
+        移动光标，粒子为你让路；输入任何文字，它们会散开、飞驰、重新排队拼出它。
+      </p>
+      <div class="p-input reveal">
+        <input id="pText" type="text" maxlength="12" placeholder="输入文字，比如：你好" value="液态玻璃">
+        <button class="btn" id="pBtn">让粒子重组</button>
+      </div>
+      <p class="p-note reveal">试试把光标按住不动 · <b>双击屏幕任意处</b> 触发粒子爆发</p>
+    </div>
+  </section>
+
+  <!-- 05 互动区 -->
+  <section id="playSec">
+    <div class="wrap">
+      <div class="chapter"><span class="no">04</span><span class="line"></span><span class="name">PLAYGROUND</span></div>
+      <h2 class="big reveal">还有几个<br>小把戏</h2>
+      <div class="play-row">
+        <div class="play-box reveal">
+          <h3>磁性按钮</h3>
+          <p>按钮被光标吸引，越靠近偏移越大——苹果 HomePod 页面同款手感。</p>
+          <div class="mag-area" id="magArea">
+            <span class="mag-btn">吸 · 我</span>
+            <span class="mag-btn blue">再吸我</span>
+            <span class="mag-btn">还有我</span>
+          </div>
+        </div>
+        <div class="play-box reveal" style="transition-delay:.08s">
+          <h3>彩蛋清单</h3>
+          <ul class="egg-list">
+            <li><span class="k">双击</span>屏幕任意位置 —— 粒子冲击波爆发</li>
+            <li><span class="k">拖拽</span>首页玻璃球 —— 带惯性的甩动旋转</li>
+            <li><span class="k">输入</span>任意文字 —— 两万粒子现场拼字</li>
+            <li><span class="k">护帧</span>帧率不足时自动削减粒子密度</li>
+            <li><span class="k">纯玩</span>底部按钮进入全屏玩具模式 —— ←/→ 切场景，ESC 退出</li>
+          </ul>
+        </div>
+        <div class="play-box reveal" style="transition-delay:.16s">
+          <h3>液态标题</h3>
+          <p>下面这行字不是图片。它是 SVG 湍流置换滤镜实时扭曲的活字，像浸在水里。</p>
+          <div style="font-size:34px;font-weight:800;letter-spacing:-.02em;filter:url(#liquidText);padding:16px 0 10px">
+            WATER<span style="color:var(--accent)">LIVE</span>
+          </div>
+        </div>
+      </div>
+      <div class="reveal" style="margin-top:26px">
+        <button class="btn" id="toyEnter" style="width:100%;height:76px;font-size:17px;letter-spacing:.04em;border-radius:24px">介绍完了 —— 进入纯玩模式 ↵</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="f-logo">LIQUID<i>·</i>GLASS</div>
+      <p>MADE WITH THREE.JS &amp; CSS GLASS · 白底浅色 · 沉浸交互演示 · 2026</p>
+    </div>
+  </footer>
+
+</div>
+<div id="spacer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+const lerp=(a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const isTouch=matchMedia('(hover:none)').matches;
+
+/* ============ 平滑滚动 ============ */
+const smooth=document.getElementById('smooth');
+const spacer=document.getElementById('spacer');
+let scrollT=0,scrollC=0;
+function setBodyHeight(){
+  spacer.style.height=smooth.scrollHeight+'px';
+  smooth.style.position='fixed';smooth.style.top='0';smooth.style.left='0';smooth.style.width='100%';
+}
+window.addEventListener('resize',setBodyHeight);
+
+/* ============ 加载器 ============ */
+const loader=document.getElementById('loader'),loadNum=document.getElementById('loadNum');
+let loadP=0;
+const loadTimer=setInterval(()=>{
+  loadP=Math.min(100,loadP+Math.random()*16+6);
+  loadNum.textContent=String(Math.floor(loadP)).padStart(2,'0');
+  if(loadP>=100){
+    clearInterval(loadTimer);
+    setTimeout(()=>{
+      loader.classList.add('done');
+      document.getElementById('hero').classList.add('ready');
+    },350);
+  }
+},110);
+
+/* ============ 自定义光标 ============ */
+const cur=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+let mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my,smx=mx,smy=my;
+if(!isTouch){
+  window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+  document.addEventListener('mouseover',e=>{
+    const t=e.target.closest('a,button,input,.card,.mag-btn,#blobHit,.egg-list li');
+    document.body.classList.toggle('cursor-hover',!!t);
+    document.getElementById('lens').classList.toggle('on',!!t&&!e.target.closest('a,button,input,#blobHit,.mag-btn'));
+  });
+}else{mx=-999;my=-999;}
+
+/* ============ Three.js 场景 ============ */
+const canvas=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,100);
+camera.position.set(0,0,7.5);
+
+/* --- 环境贴图：柔和渐变球 --- */
+(function makeEnv(){
+  const c=document.createElement('canvas');c.width=512;c.height=256;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#ffffff');g.addColorStop(.5,'#eef2f8');g.addColorStop(1,'#dfe4ec');
+  x.fillStyle=g;x.fillRect(0,0,512,256);
+  const blobs=[[130,70,90,'#ffd9c4'],[360,60,110,'#cfe0ff'],[250,190,120,'#e8dcff'],[60,170,80,'#d4f0e4']];
+  blobs.forEach(([bx,by,br,col])=>{
+    const rg=x.createRadialGradient(bx,by,0,bx,by,br);
+    rg.addColorStop(0,col);rg.addColorStop(1,'rgba(255,255,255,0)');
+    x.fillStyle=rg;x.beginPath();x.arc(bx,by,br,0,7);x.fill();
+  });
+  const tex=new THREE.CanvasTexture(c);tex.mapping=THREE.EquirectangularReflectionMapping;
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  scene.environment=pmrem.fromEquirectangular(tex).texture;
+  tex.dispose();pmrem.dispose();
+})();
+
+/* --- 液态玻璃球（可拖拽） --- */
+const blobGroup=new THREE.Group();scene.add(blobGroup);
+const blobGeo=new THREE.SphereGeometry(1.15,96,96);
+const blobMat=new THREE.MeshPhysicalMaterial({
+  color:0xffffff,transmission:1,thickness:2.2,roughness:.06,
+  ior:1.44,clearcoat:1,clearcoatRoughness:.08,
+  envMapIntensity:1.75,specularIntensity:1
+});
+const blob=new THREE.Mesh(blobGeo,blobMat);blobGroup.add(blob);
+/* 菲涅尔边缘光壳：白底上玻璃靠边缘成"形" */
+const rimMat=new THREE.ShaderMaterial({
+  transparent:true,depthWrite:false,
+  uniforms:{uColor:{value:new THREE.Color(0x7d9fd4)}},
+  vertexShader:`varying vec3 vN,vV;void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`uniform vec3 uColor;varying vec3 vN,vV;
+    void main(){
+      float f=pow(1.-abs(dot(normalize(vN),normalize(vV))),2.6);
+      gl_FragColor=vec4(uColor,f*.62);
+    }`
+});
+const rim=new THREE.Mesh(new THREE.SphereGeometry(1.158,96,96),rimMat);
+blobGroup.add(rim);
+/* 卫星小玻璃珠 */
+const sats=new THREE.Group();blobGroup.add(sats);
+const satGeo=new THREE.SphereGeometry(.09,32,32);
+const satMat=new THREE.MeshPhysicalMaterial({color:0xdde7f4,roughness:.15,metalness:0,envMapIntensity:1.6,clearcoat:1});
+for(let i=0;i<7;i++){
+  const s=new THREE.Mesh(satGeo,satMat);
+  const a=Math.random()*Math.PI*2,b=(Math.random()-.5)*Math.PI;
+  const r=1.75+Math.random()*.7;
+  s.userData={a,b,r,sp:.25+Math.random()*.4,ph:Math.random()*7};
+  sats.add(s);
+}
+const dirLight=new THREE.DirectionalLight(0xffffff,.7);
+dirLight.position.set(3,5,4);scene.add(dirLight);
+
+/* 原始球面顶点（CPU 噪声形变用） */
+const basePos=blobGeo.attributes.position.array.slice();
+function wob(t){
+  const pos=blobGeo.attributes.position.array;
+  for(let i=0;i<pos.length;i+=3){
+    const x=basePos[i],y=basePos[i+1],z=basePos[i+2];
+    const n=Math.sin(x*2.4+t*.9)*Math.sin(y*2.1-t*.7)*Math.sin(z*2.7+t*.5);
+    const s=1+n*.045+Math.sin(t*.6+x*3)*0.012;
+    pos[i]=x*s;pos[i+1]=y*s;pos[i+2]=z*s;
+  }
+  blobGeo.attributes.position.needsUpdate=true;
+  blobGeo.computeVertexNormals();
+}
+
+/* 拖拽惯性旋转 */
+let dragging=false,px=0,py=0,vx=.004,vy=.002;
+const blobHit=document.getElementById('blobHit');
+blobHit.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;blobHit.setPointerCapture(e.pointerId);});
+blobHit.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  vy=(e.clientX-px)*.006;vx=(e.clientY-py)*.006;
+  px=e.clientX;py=e.clientY;
+});
+addEventListener('pointerup',()=>dragging=false);
+
+/* ============ 粒子系统 ============ */
+const COUNT=isTouch?9000:22000;
+const startArr=new Float32Array(COUNT*3);
+const targetArr=new Float32Array(COUNT*3);
+const colorArr=new Float32Array(COUNT*3);
+const randArr=new Float32Array(COUNT);
+const sizeArr=new Float32Array(COUNT);
+function scatter(){ /* 首页：环绕玻璃球的优雅光尘环 */
+  for(let i=0;i<COUNT;i++){
+    const p=Math.random();
+    if(p<.74){ /* 主环：扁平环带，内圈避开玻璃球 */
+      const r=2.05+Math.pow(Math.random(),1.6)*3.3;
+      const a=Math.random()*Math.PI*2;
+      startArr[i*3]=Math.cos(a)*r;
+      startArr[i*3+1]=Math.sin(a)*r*.52;
+      startArr[i*3+2]=(Math.random()+Math.random()+Math.random()-1.5)*.5;
+    }else if(p<.93){ /* 稀疏远景微尘 */
+      const r=6.5+Math.random()*3;
+      const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+      startArr[i*3]=r*Math.sin(ph)*Math.cos(th);
+      startArr[i*3+1]=r*Math.sin(ph)*Math.sin(th)*.5;
+      startArr[i*3+2]=r*Math.cos(ph)*.35-2;
+    }else{ /* 屏幕两侧竖直细尘流 */
+      const side=Math.random()<.5?-1:1;
+      startArr[i*3]=side*(5.6+Math.random()*2.6);
+      startArr[i*3+1]=(Math.random()-.5)*7;
+      startArr[i*3+2]=(Math.random()-.5)*1.4;
+    }
+  }
+}
+scatter();
+targetArr.set(startArr);
+const scatterArr=new Float32Array(startArr);
+for(let i=0;i<COUNT;i++){
+  randArr[i]=Math.random();
+  sizeArr[i]=(Math.random()<.06?2.6:1.15)+Math.random()*1.0;
+  const p=Math.random();
+  let cr=.38,cg=.41,cb=.47;
+  if(p<.05){cr=.36;cg=.55;cb=.95;}       // 蓝
+  else if(p<.09){cr=.95;cg=.56;cb=.44;}  // 橙
+  else if(p<.12){cr=.5;cg=.85;cb=.7;}    // 绿
+  colorArr[i*3]=cr;colorArr[i*3+1]=cg;colorArr[i*3+2]=cb;
+}
+
+/* 文字 → 粒子目标 */
+function sampleText(text){
+  /* 高分辨率字形采样：W=2000/step=1 采样再加密，字号上限放宽让字形更大更满，阈值 150 取实心笔画，抽稀铺满全部粒子，字形更清晰利落 */
+  const W=2000,H=720;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d');
+  x.fillStyle='#fff';x.textAlign='center';x.textBaseline='middle';
+  let fs=Math.min(700,Math.floor((W-180)/Math.max(1,text.length)));
+  x.font='800 '+fs+'px -apple-system,"PingFang SC","Helvetica Neue",sans-serif';
+  while(x.measureText(text).width>W-180&&fs>40){fs-=6;x.font='800 '+fs+'px -apple-system,"PingFang SC","Helvetica Neue",sans-serif';}
+  x.fillText(text,W/2,H/2);
+  const img=x.getImageData(0,0,W,H).data;
+  const pts=[];
+  const step=1;
+  for(let yy=0;yy<H;yy+=step)for(let xx=0;xx<W;xx+=step){
+    if(img[(yy*W+xx)*4+3]>150)pts.push([xx,yy]);
+  }
+  /* 采样点过多时等距抽稀铺满全部 COUNT 粒子（单层、不堆叠），短文本自动铺满整幅画布避免复本发糊 */
+  let pool=pts;
+  const maxP=COUNT;
+  if(pool.length>maxP){
+    const out=new Array(maxP);
+    const stride=pool.length/maxP;
+    for(let i=0;i<maxP;i++)out[i]=pool[Math.floor(i*stride)];
+    pool=out;
+  }
+  const arr=new Float32Array(COUNT*3);
+  const k=W/10; // 画布 → 世界（字宽约占 9.1 世界，比原 7.74 更醒目）
+  const m=pool.length||1;
+  for(let i=0;i<COUNT;i++){
+    const p=pool[i%m];
+    arr[i*3]=(p[0]-W/2)/k+(Math.random()-.5)*.015;
+    arr[i*3+1]=-(p[1]-H/2)/k+(Math.random()-.5)*.015;
+    arr[i*3+2]=(Math.random()-.5)*.05;
+  }
+  return arr;
+}
+/* 波浪海面 */
+function sampleWave(){
+  const arr=new Float32Array(COUNT*3);
+  const side=Math.ceil(Math.sqrt(COUNT));
+  for(let i=0;i<COUNT;i++){
+    const gx=i%side,gy=Math.floor(i/side);
+    arr[i*3]=(gx/side-.5)*11;
+    arr[i*3+1]=-.4-(gy/side)*1.6;
+    arr[i*3+2]=-(gy/side)*5-1;
+  }
+  return arr;
+}
+
+const pGeo=new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(startArr,3));
+pGeo.setAttribute('aTarget',new THREE.BufferAttribute(targetArr,3));
+pGeo.setAttribute('aColor',new THREE.BufferAttribute(colorArr,3));
+pGeo.setAttribute('aRand',new THREE.BufferAttribute(randArr,1));
+pGeo.setAttribute('aSize',new THREE.BufferAttribute(sizeArr,1));
+const pUniforms={
+  uTime:{value:0},uMorph:{value:1},uWave:{value:0},
+  uMouse:{value:new THREE.Vector3(99,99,0)},
+  uBurst:{value:0},uBurstC:{value:new THREE.Vector3(0,0,0)},
+  uDensity:{value:1},uPR:{value:Math.min(devicePixelRatio,2)}
+};
+const pMat=new THREE.ShaderMaterial({
+  uniforms:pUniforms,transparent:true,depthWrite:false,
+  vertexShader:`
+    attribute vec3 aTarget;attribute vec3 aColor;attribute float aRand;attribute float aSize;
+    uniform float uTime,uMorph,uWave,uBurst,uDensity,uPR;
+    uniform vec3 uMouse,uBurstC;
+    varying vec3 vColor;varying float vA;
+    void main(){
+      if(aRand>uDensity){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;return;}
+      float d=clamp(uMorph*1.35-aRand*.35,0.,1.);d=d*d*(3.-2.*d);
+      vec3 pos=mix(position,aTarget,d);
+      /* 呼吸漂浮 */
+      pos.x+=sin(uTime*.55+aRand*43.7)*.045;
+      pos.y+=cos(uTime*.48+aRand*91.3)*.05;
+      pos.z+=sin(uTime*.4+aRand*57.1)*.03;
+      /* 波浪海面 */
+      pos.y+=uWave*(sin(pos.x*1.35+uTime*1.5)*.32+cos(pos.z*2.1+uTime)*.18);
+      /* 鼠标斥力 */
+      vec2 tm=pos.xy-uMouse.xy;
+      float dist=length(tm);
+      float f=smoothstep(1.35,.0,dist)*.85;
+      pos.xy+=normalize(tm+.001)*f*f;
+      /* 爆发冲击波 */
+      float bd=distance(pos,uBurstC);
+      float ring=smoothstep(3.2,0.,abs(bd-uBurst*4.5))*smoothstep(0.,.15,uBurst)*(1.-uBurst);
+      pos+=normalize(pos-uBurstC+.001)*ring*2.4;
+      vA=1.-ring*.3;
+      vec4 mv=modelViewMatrix*vec4(pos,1.);
+      gl_Position=projectionMatrix*mv;
+      gl_PointSize=aSize*uPR*(9./-mv.z);
+      vColor=aColor;
+    }`,
+  fragmentShader:`
+    varying vec3 vColor;varying float vA;
+    void main(){
+      vec2 uv=gl_PointCoord-.5;
+      float d=length(uv);
+      float a=1.-smoothstep(.06,.34,d);
+      gl_FragColor=vec4(vColor,a*.7*vA);
+    }`
+});
+const points=new THREE.Points(pGeo,pMat);scene.add(points);
+
+/* 状态切换：aStart ← 当前混合位置 */
+let morphStart=0;
+function setState(arr){
+  const m=pUniforms.uMorph.value;
+  const s=pGeo.attributes.position.array,t=pGeo.attributes.aTarget.array;
+  for(let i=0;i<s.length;i+=3){
+    s[i]=lerp(s[i],t[i],m);s[i+1]=lerp(s[i+1],t[i+1],m);s[i+2]=lerp(s[i+2],t[i+2],m);
+  }
+  pGeo.attributes.position.needsUpdate=true;
+  t.set(arr);pGeo.attributes.aTarget.needsUpdate=true;
+  pUniforms.uMorph.value=0;morphStart=performance.now();
+}
+
+/* 输入文字重组 */
+document.getElementById('pBtn').addEventListener('click',()=>{
+  const v=document.getElementById('pText').value.trim()||'液态玻璃';
+  setState(sampleText(v));
+});
+document.getElementById('pText').addEventListener('keydown',e=>{
+  if(e.key==='Enter')document.getElementById('pBtn').click();
+});
+
+/* 双击爆发 */
+let burstT=-1;const burstC=new THREE.Vector3();
+addEventListener('dblclick',e=>{
+  burstT=performance.now();
+  burstC.set((e.clientX/innerWidth-.5)*9,-(e.clientY/innerHeight-.5)*5,0);
+});
+
+/* ============ 章节驱动 ============ */
+const secs=['hero','glassSec','lightSec','particleSec','playSec'].map(id=>document.getElementById(id));
+const waveArr=sampleWave();
+const textArr=sampleText('液态玻璃');
+let curSec='hero';
+function driveSections(){
+  if(toyMode)return;
+  const vh=innerHeight,mid=scrollC+vh*.5;
+  let active=secs[0];
+  for(const s of secs){if(s.offsetTop<=mid)active=s;}
+  if(active.id!==curSec){
+    curSec=active.id;
+    document.querySelectorAll('#nav a,#dots i').forEach(el=>{
+      el.classList.toggle('active',el.dataset.sec===curSec);
+    });
+  }
+  /* 粒子状态 */
+  const pSec=secs[3],lSec=secs[2];
+  const pPro=clamp((mid-pSec.offsetTop)/(vh*1.2),0,1);
+  const lPro=clamp((mid-lSec.offsetTop)/(vh*1.4),0,1);
+  pUniforms.uWave.value=lPro*(1-pPro);
+  const wantText=pPro>.25;
+  if(wantText&&!driveSections.textOn){driveSections.textOn=true;setState(textArr);}
+  if(!wantText&&driveSections.textOn){driveSections.textOn=false;setState(waveArr);}
+  /* 玻璃球：随滚动上移淡出 */
+  const hp=clamp(scrollC/(vh*.9),0,1);
+  blobGroup.position.y=hp*5.2;
+  blobGroup.scale.setScalar(1-hp*.25);
+  blobGroup.visible=hp<1;
+  /* 光晕呼吸 */
+  const orb=document.getElementById('lightOrb');
+  if(orb){
+    const s=1+Math.sin(performance.now()*.0012)*.06+lPro*.15;
+    orb.style.transform=`translate(-50%,-50%) scale(${s})`;
+  }
+  /* reveal 元素 */
+  document.querySelectorAll('.reveal').forEach(el=>{
+    if(el.offsetTop<scrollC+vh*.86)el.classList.add('in');
+  });
+}
+secs.forEach(s=>{
+  const a=document.createElement('a');a.style.display='none';
+});
+document.querySelectorAll('#nav a,#dots i').forEach(el=>{
+  el.addEventListener('click',e=>{
+    e.preventDefault();
+    const t=document.getElementById(el.dataset.sec);
+    window.scrollTo({top:el.dataset.sec==='hero'?0:t.offsetTop,behavior:'smooth'});
+  });
+});
+
+/* ============ 卡片倾斜 + 透镜 + 磁性按钮 ============ */
+if(!isTouch){
+  document.querySelectorAll('.card.tilt').forEach(card=>{
+    card.addEventListener('mousemove',e=>{
+      const r=card.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+      card.style.setProperty('--ry',(x*7)+'deg');
+      card.style.setProperty('--rx',(-y*7)+'deg');
+    });
+    card.addEventListener('mouseleave',()=>{
+      card.style.setProperty('--rx','0deg');card.style.setProperty('--ry','0deg');
+    });
+  });
+  document.querySelectorAll('#magArea .mag-btn').forEach(btn=>{
+    btn.addEventListener('mousemove',e=>{
+      const r=btn.getBoundingClientRect();
+      const dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);
+      btn.style.transform=`translate(${dx*.35}px,${dy*.45}px)`;
+    });
+    btn.addEventListener('mouseleave',()=>{btn.style.transition='transform .5s cubic-bezier(.22,1,.36,1)';btn.style.transform='';setTimeout(()=>btn.style.transition='',500);});
+  });
+}
+
+/* ============ 鼠标 → 世界坐标 ============ */
+const raycaster=new THREE.Raycaster(),ndc=new THREE.Vector2(),plane=new THREE.Plane(new THREE.Vector3(0,0,1),0),hit=new THREE.Vector3();
+function mouseWorld(){
+  ndc.set((smx/innerWidth)*2-1,-(smy/innerHeight)*2+1);
+  raycaster.setFromCamera(ndc,camera);
+  raycaster.ray.intersectPlane(plane,hit);
+  pUniforms.uMouse.value.copy(hit);
+}
+
+/* ============ 帧率自适应 ============ */
+let fpsAcc=0,fpsN=0,fpsChecked=0;
+function autoDensity(dt){
+  fpsAcc+=dt;fpsN++;
+  if(fpsAcc>2.5){
+    const fps=fpsN/fpsAcc;fpsAcc=0;fpsN=0;fpsChecked++;
+    if(fpsChecked>1&&fps<42&&pUniforms.uDensity.value>.35)pUniforms.uDensity.value=Math.max(.35,pUniforms.uDensity.value-.25);
+  }
+}
+
+/* ============ 主循环 ============ */
+let last=performance.now();
+function tick(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  /* 平滑滚动 */
+  scrollT=window.scrollY;
+  scrollC=lerp(scrollC,scrollT,.085);
+  if(Math.abs(scrollC-scrollT)<.05)scrollC=scrollT;
+  smooth.style.transform=`translate3d(0,${-scrollC}px,0)`;
+  /* 光标 */
+  if(!isTouch){
+    cur.style.transform=`translate(${mx-5}px,${my-5}px)`;
+    rx=lerp(rx,mx,.16);ry=lerp(ry,my,.16);
+    ring.style.left=rx+'px';ring.style.top=ry+'px';
+    smx=lerp(smx,mx,.1);smy=lerp(smy,my,.1);
+    const lens=document.getElementById('lens');
+    lens.style.left=rx+'px';lens.style.top=ry+'px';
+  }
+  /* 玻璃球 */
+  if(blobGroup.visible){
+    if(!dragging){vx*=.985;vy*=.985;vy+=.0012;}
+    blobGroup.rotation.y+=vy+ .0032;
+    blobGroup.rotation.x+=vx;
+    blobGroup.rotation.x=clamp(blobGroup.rotation.x,-1.1,1.1);
+    sats.children.forEach(s=>{
+      const u=s.userData;u.a+=u.sp*dt*.4;
+      s.position.set(Math.cos(u.a)*u.r,Math.sin(u.a*1.3+u.ph)*u.r*.42,Math.sin(u.a)*u.r);
+    });
+    wob(now*.001);
+  }
+  /* 粒子 */
+  pUniforms.uTime.value=now*.001;
+  if(morphStart){pUniforms.uMorph.value=clamp((now-morphStart)/1600,0,1);if(pUniforms.uMorph.value>=1)morphStart=0;}
+  if(burstT>0){pUniforms.uBurst.value=clamp((now-burstT)/900,0,1);if(pUniforms.uBurst.value>=1)burstT=-1;}
+  else if(burstT<0)pUniforms.uBurst.value=0;
+  mouseWorld();
+  autoDensity(dt);
+  driveSections();
+  toyTick();
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+
+/* ============ 纯玩模式 ============ */
+let toyMode=false,toyScene=0,toyWord='大家好我是小咪--@bilibili';
+const toyHit=document.getElementById('toyHit');
+const toyHint=document.getElementById('toyHint');
+const toyOrb=document.getElementById('toyOrb');
+const toyMag=document.getElementById('toyMag');
+const HINTS=[
+  '拖住玻璃球甩出去，松手看惯性',
+  '直接打字 —— 粒子现场拼出来（退格删除）',
+  '光跟着你走，点一下来次光爆',
+  '玻璃珠被光标吸引，甩甩看'
+];
+/* 磁力玻璃珠 */
+const pebs=[];
+for(let i=0;i<12;i++){
+  const d=document.createElement('div');d.className='peb';
+  const s=34+Math.random()*62;
+  d.style.width=s+'px';d.style.height=s+'px';
+  toyMag.appendChild(d);
+  pebs.push({el:d,x:Math.random()*innerWidth,y:Math.random()*innerHeight,vx:0,vy:0,s});
+}
+function toyApply(){
+  toyHit.style.display=toyMode&&toyScene===0?'block':'none';
+  toyOrb.style.display=toyMode&&toyScene===2?'block':'none';
+  toyMag.style.display=toyMode&&toyScene===3?'block':'none';
+  document.querySelectorAll('#toyDots b').forEach(b=>b.classList.toggle('on',+b.dataset.ts===toyScene));
+  toyHint.textContent=toyMode?HINTS[toyScene]:'';
+  if(!toyMode)return;
+  pUniforms.uWave.value=toyScene===2?1:0;
+  if(toyScene===0){
+    blobGroup.visible=true;
+    blobGroup.position.set(0,0,0);
+    blobGroup.scale.setScalar(1.18);
+    setState(scatterArr);
+  }else{
+    blobGroup.visible=false;
+  }
+  if(toyScene===1){driveSections.textOn=true;setState(sampleText(toyWord));}
+  if(toyScene===2)setState(waveArr);
+  if(toyScene===3)setState(scatterArr);
+}
+function setScene(n){toyScene=(n+4)%4;toyApply();}
+function enterToy(){toyMode=true;document.body.classList.add('toy');setScene(0);}
+function exitToy(){
+  toyMode=false;document.body.classList.remove('toy');
+  blobGroup.scale.setScalar(1);
+  driveSections.textOn=true; /* 让滚动逻辑接管，平滑过渡回波浪 */
+  toyApply();
+}
+document.getElementById('toyEnter').addEventListener('click',enterToy);
+document.getElementById('toyExit').addEventListener('click',exitToy);
+document.querySelectorAll('#toyDots b').forEach(b=>b.addEventListener('click',()=>setScene(+b.dataset.ts)));
+/* 玩具模式拖球（复用惯性变量） */
+toyHit.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;toyHit.setPointerCapture(e.pointerId);});
+toyHit.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  vy=(e.clientX-px)*.006;vx=(e.clientY-py)*.006;
+  px=e.clientX;py=e.clientY;
+});
+/* 光场景：点击光爆脉冲 */
+addEventListener('click',e=>{
+  if(!toyMode||toyScene!==2)return;
+  toyOrb.style.transition='none';
+  toyOrb.style.transform='translate(-50%,-50%) scale(1.22)';
+  requestAnimationFrame(()=>{
+    toyOrb.style.transition='transform .55s cubic-bezier(.22,1,.36,1)';
+    toyOrb.style.transform='translate(-50%,-50%) scale(1)';
+  });
+});
+/* 键盘：ESC 退出 / 方向键切场景 / 打字拼字 */
+addEventListener('keydown',e=>{
+  if(!toyMode)return;
+  if(e.key==='Escape'){exitToy();return;}
+  if(e.key==='ArrowRight'){setScene(toyScene+1);return;}
+  if(e.key==='ArrowLeft'){setScene(toyScene-1);return;}
+  if(toyScene===1){
+    if(e.key==='Backspace'){toyWord=toyWord.slice(0,-1)||'大家好我是小咪--@bilibili';setState(sampleText(toyWord));}
+    else if(e.key.length===1&&!e.metaKey&&!e.ctrlKey){
+      toyWord=(toyWord+e.key).slice(-10);
+      setState(sampleText(toyWord));
+    }
+  }
+});
+/* 玩具模式逐帧：光球跟随 + 磁珠物理 */
+function toyTick(){
+  if(!toyMode)return;
+  if(toyScene===2){
+    toyOrb.style.left=smx+'px';
+    toyOrb.style.top=smy+'px';
+  }
+  if(toyScene===3&&!isTouch){
+    for(const p of pebs){
+      const dx=smx-p.x,dy=smy-p.y,d=Math.hypot(dx,dy)||1;
+      /* 吸引 + 一点切向漩涡 */
+      p.vx=(p.vx+(dx/d)*1.15+(-dy/d)*.33)*.88;
+      p.vy=(p.vy+(dy/d)*1.15+(dx/d)*.33)*.88;
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<p.s/2){p.x=p.s/2;p.vx*=-.5}
+      if(p.x>innerWidth-p.s/2){p.x=innerWidth-p.s/2;p.vx*=-.5}
+      if(p.y<p.s/2){p.y=p.s/2;p.vy*=-.5}
+      if(p.y>innerHeight-p.s/2){p.y=innerHeight-p.s/2;p.vy*=-.5}
+      p.el.style.transform=`translate3d(${p.x-p.s/2}px,${p.y-p.s/2}px,0)`;
+    }
+  }
+}
+
+/* ============ 启动 ============ */
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  setBodyHeight();
+});
+setBodyHeight();
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
+
