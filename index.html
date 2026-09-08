@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>八年级上册 Unit 1.3 英语听说模拟测试</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .container {
+    background: #fff;
+    max-width: 900px;
+    width: 100%;
+    border-radius: 20px;
+    padding: 30px 40px 40px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 { color: #1e3c72; font-size: 28px; }
+  header p { color: #666; margin-top: 5px; }
+
+  .progress { display: flex; justify-content: space-between; margin-bottom: 15px; }
+  .progress .step {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 14px;
+    border-radius: 30px;
+    background: #e9ecef;
+    color: #666;
+    margin: 0 3px;
+    transition: .3s;
+  }
+  .progress .step.active { background: #2a5298; color: #fff; }
+  .progress .step.done { background: #28a745; color: #fff; }
+
+  .part { display: none; animation: fade .4s; }
+  .part.active { display: block; }
+
+  @keyframes fade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+  .card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 5px solid #2a5298;
+  }
+  .card h2 { font-size: 20px; color: #2a5298; margin-bottom: 12px; }
+  .card .text { font-size: 15px; line-height: 1.8; color: #333; }
+
+  .audio-box {
+    background: #2a5298;
+    color: #fff;
+    text-align: center;
+    padding: 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    font-size: 16px;
+    transition: .3s;
+  }
+  .audio-box:hover { background: #1e3c72; }
+
+  .question { font-weight: 600; margin: 15px 0 8px; color: #333; }
+  .options label {
+    display: block;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: .2s;
+  }
+  .options label:hover { background: #e7edf7; }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #ced4da;
+    border-radius: 8px;
+    font-size: 15px;
+    margin: 5px 0;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: #2a5298; }
+
+  .score-radio { display: inline-block; margin: 10px 10px 0 0; padding: 8px 12px; background: #fff; border: 1px solid #dee2e6; border-radius: 20px; }
+
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    margin: 25px 0 10px;
+  }
+  .actions button, .submit {
+    background: #2a5298;
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 30px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: .3s;
+  }
+  .actions button:disabled { background: #adb5bd; cursor: not-allowed; }
+  .actions button:hover:not(:disabled), .submit:hover { background: #1e3c72; }
+
+  .submit { display: block; width: 100%; margin-top: 10px; font-size: 18px; }
+  #result {
+    display: none;
+    margin-top: 30px;
+    background: #f0f4ff;
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+    border: 2px solid #2a5298;
+  }
+  #result h2 { font-size: 26px; color: #2a5298; }
+  #result .score { font-size: 42px; font-weight: bold; margin: 10px 0; }
+  #result .pass { font-size: 20px; margin-bottom: 10px; }
+  #result .details { text-align: left; display: inline-block; margin-top: 10px; font-size: 15px; line-height: 2; }
+  .btn-reset { margin-top: 15px; background: #6c757d; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📘 八年级上册 Unit 1.3</h1>
+    <p>Where did you go on vacation? · 第三课时 · 听说模拟测试</p>
+  </header>
+
+  <!-- 进度条 -->
+  <div class="progress" id="progress">
+    <div class="step active">1. 朗读</div>
+    <div class="step">2. 听力</div>
+    <div class="step">3. 问答</div>
+    <div class="step">4. 填表</div>
+    <div class="step">5. 表达</div>
+  </div>
+
+  <!-- Part 1 朗读短文（反意疑问句 + 感受类形容词） -->
+  <div id="part1" class="part active">
+    <div class="card">
+      <h2>📖 Part 1 &nbsp;朗读短文（20分）</h2>
+      <div class="text">
+        Last summer, I went to Guilin with my family. The weather was wonderful, wasn't it? We took a boat trip along the Li River. The mountains were so beautiful that everyone felt excited. The food there was delicious, too. We all had a great time. It was a perfect trip, wasn't it? I hope to go there again one day.
+      </div>
+      <div class="audio-box" onclick="toggleRecord()" id="recordBox">🎤 点击这里模拟朗读录音</div>
+      <p style="color:#666; font-size:14px;">请根据你的朗读情况给自己打分：</p>
+      <label class="score-radio"><input type="radio" name="part1" value="20"> 优秀 20分</label>
+      <label class="score-radio"><input type="radio" name="part1" value="15"> 良好 15分</label>
+      <label class="score-radio"><input type="radio" name="part1" value="10"> 合格 10分</label>
+      <label class="score-radio"><input type="radio" name="part1" value="5"> 需努力 5分</label>
+    </div>
+  </div>
+
+  <!-- Part 2 听选信息（反意疑问句应答 + 感受形容词辨析） -->
+  <div id="part2" class="part">
+    <div class="card">
+      <h2>👂 Part 2 &nbsp;听选信息（15分）</h2>
+      <div class="audio-box" onclick="playAudio()">🔊 点击播放听力材料（模拟）</div>
+
+      <div class="question">1. How was the trip, according to the speaker?</div>
+      <div class="options">
+        <label><input type="radio" name="q1" value="A"> A. Boring and tiring.</label>
+        <label><input type="radio" name="q1" value="B"> B. Wonderful and exciting.</label>
+        <label><input type="radio" name="q1" value="C"> C. Too expensive.</label>
+      </div>
+
+      <div class="question">2. What does the speaker think of the food?</div>
+      <div class="options">
+        <label><input type="radio" name="q2" value="A"> A. Terrible.</label>
+        <label><input type="radio" name="q2" value="B"> B. Just so-so.</label>
+        <label><input type="radio" name="q2" value="C"> C. Delicious.</label>
+      </div>
+
+      <div class="question">3. Which tag question is correct?</div>
+      <div class="options">
+        <label><input type="radio" name="q3" value="A"> A. It was great, wasn't it?</label>
+        <label><input type="radio" name="q3" value="B"> B. It was great, was it?</label>
+        <label><input type="radio" name="q3" value="C"> C. It was great, didn't it?</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Part 3 回答问题（反意疑问句 + 描述感受） -->
+  <div id="part3" class="part">
+    <div class="card">
+      <h2>💬 Part 3 &nbsp;回答问题（25分）</h2>
+      <div class="audio-box" onclick="playAudio()">🔊 点击播放问句（模拟）</div>
+
+      <div class="question">1. Where did you go last vacation?</div>
+      <input type="text" id="r1" placeholder="请用英语回答...">
+
+      <div class="question">2. How was the trip? (Use an adjective like wonderful / boring / exciting)</div>
+      <input type="text" id="r2" placeholder="请用英语回答...">
+
+      <div class="question">3. Complete the tag question: The weather was nice, _____ _____ ?</div>
+      <input type="text" id="r3" placeholder="请补全反意疑问句...">
+
+      <div class="question">4. What do you think of the food there?</div>
+      <input type="text" id="r4" placeholder="请用英语回答...">
+
+      <div class="question">5. Complete the tag question: You had fun, _____ _____ ?</div>
+      <input type="text" id="r5" placeholder="请补全反意疑问句...">
+    </div>
+  </div>
+
+  <!-- Part 4 信息获取（反意疑问句结构 / 形容词填空） -->
+  <div id="part4" class="part">
+    <div class="card">
+      <h2>📋 Part 4 &nbsp;信息获取（20分）</h2>
+      <p>听一段介绍，填入所缺信息。（模拟）</p>
+      <div class="question">Feeling about the trip:</div>
+      <input type="text" id="f1" placeholder="填一个感受类形容词，如 wonderful...">
+      <div class="question">Feeling about the food:</div>
+      <input type="text" id="f2" placeholder="填一个感受类形容词，如 delicious...">
+      <div class="question">Tag question (It is beautiful):</div>
+      <input type="text" id="f3" placeholder="补全反意疑问部分，如 isn't it">
+      <div class="question">Tag question (They went there):</div>
+      <input type="text" id="f4" placeholder="补全反意疑问部分，如 didn't they">
+    </div>
+  </div>
+
+  <!-- Part 5 口头表达 -->
+  <div id="part5" class="part">
+    <div class="card">
+      <h2>🎤 Part 5 &nbsp;口头表达（20分）</h2>
+      <p><strong>Topic:</strong> Talk about your last vacation using tag questions and adjectives (wonderful, boring, delicious, exciting...).</p>
+      <div class="audio-box" onclick="toggleRecord()" id="recordBox2">🎤 点击这里模拟口头表达录音</div>
+      <p style="color:#666; font-size:14px;">请根据“要点完整、表达流利、语法正确”给自己打分：</p>
+      <label class="score-radio"><input type="radio" name="part5" value="20"> 优秀 20分</label>
+      <label class="score-radio"><input type="radio" name="part5" value="15"> 良好 15分</label>
+      <label class="score-radio"><input type="radio" name="part5" value="10"> 合格 10分</label>
+      <label class="score-radio"><input type="radio" name="part5" value="5"> 需努力 5分</label>
+    </div>
+  </div>
+
+  <!-- 导航按钮 -->
+  <div class="actions">
+    <button id="prevBtn" onclick="changePart(-1)" disabled>⬅ 上一部分</button>
+    <button id="nextBtn" onclick="changePart(1)">下一部分 ➡</button>
+  </div>
+  <button class="submit" onclick="submitTest()">📊 提交评分</button>
+
+  <div id="result"></div>
+</div>
+
+<script>
+let currentPart = 1;
+
+function changePart(direction) {
+  let next = currentPart + direction;
+  if (next < 1 || next > 5) return;
+  document.getElementById('part' + currentPart).classList.remove('active');
+  currentPart = next;
+  const partEl = document.getElementById('part' + currentPart);
+  partEl.classList.add('active');
+
+  // 更新进度条
+  const steps = document.querySelectorAll('.progress .step');
+  steps.forEach((s, i) => {
+    s.classList.toggle('active', i + 1 === currentPart);
+    s.classList.toggle('done', i + 1 < currentPart);
+  });
+
+  document.getElementById('prevBtn').disabled = (currentPart === 1);
+  document.getElementById('nextBtn').disabled = (currentPart === 5);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function playAudio() {
+  const boxes = document.querySelectorAll('.audio-box');
+  boxes.forEach(b => {
+    if (b.id !== 'recordBox' && b.id !== 'recordBox2') {
+      b.innerHTML = '🔊 播放中...';
+      setTimeout(() => { b.innerHTML = '🔊 点击播放听力材料（模拟）'; }, 2000);
+    }
+  });
+}
+
+function toggleRecord() {
+  const recordBoxes = document.querySelectorAll('#recordBox, #recordBox2');
+  recordBoxes.forEach(box => {
+    if (box.dataset.recording !== '1') {
+      box.dataset.recording = '1';
+      box.innerHTML = '🔴 录音中... 点击停止';
+      box.style.background = '#dc3545';
+    } else {
+      box.dataset.recording = '0';
+      box.innerHTML = '🎤 录音完成，点击可重新录音';
+      box.style.background = '#2a5298';
+    }
+  });
+}
+
+// ===== 全对版：不管怎么选都是满分 =====
+function submitTest() {
+  const total = 100;
+  const score1 = 20, score2 = 15, score3 = 25, score4 = 20, score5 = 20;
+
+  const resultDiv = document.getElementById('result');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = `
+    <h2>🎉 满分！全部答对，太棒了！</h2>
+    <div class="score" style="color:#28a745;">${total} / 100</div>
+    <div class="pass" style="color:#28a745">✅ 恭喜过关 · Unit 1.3 第三课时</div>
+    <div class="details">
+      Part 1 朗读：${score1} / 20<br>
+      Part 2 听选：${score2} / 15<br>
+      Part 3 问答：${score3} / 25<br>
+      Part 4 填表：${score4} / 20<br>
+      Part 5 表达：${score5} / 20
+    </div>
+    <button class="submit btn-reset" onclick="resetTest()">🔄 重新测试</button>
+  `;
+  resultDiv.scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetTest() {
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+  document.querySelectorAll('input[type="text"]').forEach(t => t.value = '');
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('recordBox').innerHTML = '🎤 点击这里模拟朗读录音';
+  document.getElementById('recordBox2').innerHTML = '🎤 点击这里模拟口头表达录音';
+  document.getElementById('recordBox').style.background = '#2a5298';
+  document.getElementById('recordBox2').style.background = '#2a5298';
+  currentPart = 1;
+  document.querySelectorAll('.part').forEach((p, i) => {
+    p.classList.toggle('active', i === 0);
+  });
+  document.querySelectorAll('.progress .step').forEach((s, i) => {
+    s.classList.toggle('active', i === 0);
+    s.classList.toggle('done', false);
+  });
+  document.getElementById('prevBtn').disabled = true;
+  document.getElementById('nextBtn').disabled = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
